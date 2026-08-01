@@ -27,10 +27,11 @@ borda), não um aplicativo genérico estilo Material Design.
 Pré-requisitos: Node.js 20+.
 
 ```bash
-npm install        # instala dependências e já gera o Prisma Client
-npm run db:migrate  # cria o banco SQLite local (prisma/dev.db) e aplica o schema
-npm run db:seed     # popula com matérias, provas e questões de exemplo
-npm run dev          # inicia o servidor em http://localhost:3000
+cp .env.example .env  # variáveis de ambiente locais (não vêm versionadas)
+npm install            # instala dependências e já gera o Prisma Client
+npm run db:migrate     # cria o banco SQLite local (dev.db) e aplica o schema
+npm run db:seed        # popula com matérias, provas e questões de exemplo
+npm run dev            # inicia o servidor em http://localhost:3000
 ```
 
 Um usuário de demonstração é criado pelo seed:
