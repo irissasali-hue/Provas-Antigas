@@ -1,0 +1,215 @@
+// Banco de dados do Provas Antigas
+// Guia rápido: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------------------------
+// Usuários e sessões
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  sessions       Session[]
+  studyLists     StudyList[]
+  attempts       Attempt[]
+  reviewSchedule ReviewSchedule[]
+}
+
+model Session {
+  token     String   @id // token opaco gerado com crypto.randomBytes, não cuid (precisa ser imprevisível)
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Provas e questões
+// ---------------------------------------------------------------------------
+
+// Instituição responsável pela prova (ENEM/INEP, FUVEST, UNICAMP, UNESP...)
+model Institution {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  shortName String
+  siteUrl   String?
+
+  exams Exam[]
+}
+
+model Exam {
+  id            String   @id @default(cuid())
+  institutionId String
+  year          Int
+  phase         String? // ex.: "1ª fase", "2ª fase", "Reaplicação"
+  title         String // ex.: "ENEM 2015 - Caderno Azul"
+  description   String?
+  pdfUrl        String? // link para a prova na íntegra (PDF)
+  answerKeyUrl  String? // gabarito oficial
+  createdAt     DateTime @default(now())
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+  questions   Question[]
+
+  @@index([institutionId, year])
+}
+
+model Subject {
+  id   String @id @default(cuid())
+  name String @unique // Matemática, Português, Química...
+  slug String @unique
+
+  topics    Topic[]
+  questions Question[]
+}
+
+model Topic {
+  id        String @id @default(cuid())
+  subjectId String
+  name      String // ex.: "Funções", "Interpretação de texto"
+  slug      String @unique
+
+  subject        Subject          @relation(fields: [subjectId], references: [id])
+  questions      Question[]
+  videos         Video[]
+  reviewSchedule ReviewSchedule[]
+
+  @@index([subjectId])
+}
+
+model Question {
+  id        String  @id @default(cuid())
+  examId    String
+  number    Int // número da questão no caderno original
+  statement String // enunciado (texto/markdown)
+  imageUrl  String? // imagem/figura da questão, se houver
+  subjectId String
+  topicId   String?
+  sourceUrl String? // link direto para a questão na prova original
+
+  exam         Exam          @relation(fields: [examId], references: [id])
+  subject      Subject       @relation(fields: [subjectId], references: [id])
+  topic        Topic?        @relation(fields: [topicId], references: [id])
+  alternatives Alternative[]
+  listItems    StudyListItem[]
+  attempts     Attempt[]
+
+  @@unique([examId, number])
+  @@index([subjectId])
+  @@index([topicId])
+}
+
+model Alternative {
+  id         String  @id @default(cuid())
+  questionId String
+  letter     String // A, B, C, D, E
+  text       String
+  isCorrect  Boolean @default(false)
+
+  question Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  attempts Attempt[]
+
+  @@unique([questionId, letter])
+}
+
+// ---------------------------------------------------------------------------
+// Listas de estudo montadas pelo usuário
+// ---------------------------------------------------------------------------
+
+model StudyList {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  createdAt DateTime @default(now())
+
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items StudyListItem[]
+
+  @@index([userId])
+}
+
+model StudyListItem {
+  id         String @id @default(cuid())
+  listId     String
+  questionId String
+  position   Int
+
+  list     StudyList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  question Question  @relation(fields: [questionId], references: [id])
+
+  @@unique([listId, questionId])
+}
+
+// Motivo do erro, classificado pelo usuário após responder
+enum ErrorType {
+  ERRO_TEORICO // não sabia o conteúdo
+  ERRO_INTERPRETACAO // entendeu errado o enunciado
+  ERRO_DISTRACAO // sabia, mas se distraiu
+  ERRO_CALCULO // erro de conta/execução
+  FALTA_DE_TEMPO // não deu tempo de resolver com calma
+  CHUTE // respondeu no chute
+}
+
+model Attempt {
+  id            String     @id @default(cuid())
+  userId        String
+  questionId    String
+  alternativeId String?
+  isCorrect     Boolean
+  errorType     ErrorType?
+  answeredAt    DateTime   @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question    Question     @relation(fields: [questionId], references: [id])
+  alternative Alternative? @relation(fields: [alternativeId], references: [id])
+
+  @@index([userId, questionId])
+}
+
+// ---------------------------------------------------------------------------
+// Revisão espaçada por tema + vídeos recomendados
+// ---------------------------------------------------------------------------
+
+model ReviewSchedule {
+  id          String   @id @default(cuid())
+  userId      String
+  topicId     String
+  stage       Int      @default(0) // etapa na escala de repetição espaçada
+  dueDate     DateTime
+  lastReview  DateTime?
+  timesWrong  Int      @default(0)
+  timesRight  Int      @default(0)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic Topic @relation(fields: [topicId], references: [id])
+
+  @@unique([userId, topicId])
+  @@index([userId, dueDate])
+}
+
+model Video {
+  id       String  @id @default(cuid())
+  topicId  String
+  title    String
+  channel  String
+  youtubeUrl String
+  rating   Float   @default(0) // nota média (0-5) atribuída pela comunidade
+  votes    Int     @default(0)
+
+  topic Topic @relation(fields: [topicId], references: [id])
+
+  @@index([topicId])
+}
