@@ -10,6 +10,7 @@ export type QuestionFilters = {
 
 export function buildQuestionWhere(filters: QuestionFilters): Prisma.QuestionWhereInput {
   return {
+    status: "PUBLISHED",
     subjectId: filters.subjectId || undefined,
     topicId: filters.topicId || undefined,
     exam: {

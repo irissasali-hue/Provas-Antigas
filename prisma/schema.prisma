@@ -21,6 +21,8 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
 
+  isAdmin      Boolean  @default(false)
+
   sessions       Session[]
   studyLists     StudyList[]
   attempts       Attempt[]
@@ -63,6 +65,7 @@ model Exam {
 
   institution Institution @relation(fields: [institutionId], references: [id])
   questions   Question[]
+  importJobs  ImportJob[]
 
   @@index([institutionId, year])
 }
@@ -90,8 +93,15 @@ model Topic {
   @@index([subjectId])
 }
 
+// Rascunho: gerado por importação automática, ainda não revisado por humano.
+// Publicada: aparece normalmente no site.
+enum QuestionStatus {
+  DRAFT
+  PUBLISHED
+}
+
 model Question {
-  id        String  @id @default(cuid())
+  id        String         @id @default(cuid())
   examId    String
   number    Int // número da questão no caderno original
   statement String // enunciado (texto/markdown)
@@ -99,17 +109,22 @@ model Question {
   subjectId String
   topicId   String?
   sourceUrl String? // link direto para a questão na prova original
+  status    QuestionStatus @default(PUBLISHED)
+  importJobId String?
 
   exam         Exam          @relation(fields: [examId], references: [id])
   subject      Subject       @relation(fields: [subjectId], references: [id])
   topic        Topic?        @relation(fields: [topicId], references: [id])
+  importJob    ImportJob?    @relation(fields: [importJobId], references: [id])
   alternatives Alternative[]
   listItems    StudyListItem[]
   attempts     Attempt[]
+  images       ImportedImage[]
 
   @@unique([examId, number])
   @@index([subjectId])
   @@index([topicId])
+  @@index([status])
 }
 
 model Alternative {
@@ -212,4 +227,36 @@ model Video {
   topic Topic @relation(fields: [topicId], references: [id])
 
   @@index([topicId])
+}
+
+// ---------------------------------------------------------------------------
+// Importação automatizada de provas (PDF -> IA -> rascunho -> revisão)
+// ---------------------------------------------------------------------------
+
+model ImportJob {
+  id             String   @id @default(cuid())
+  examId         String
+  sourceFileName String
+  model          String // modelo de IA usado na extração
+  createdAt      DateTime @default(now())
+  notes          String? // avisos/observações da extração (ex.: questões sem gabarito)
+
+  exam      Exam            @relation(fields: [examId], references: [id])
+  questions Question[]
+  images    ImportedImage[]
+
+  @@index([examId])
+}
+
+model ImportedImage {
+  id                 String  @id @default(cuid())
+  importJobId        String
+  filePath           String // caminho relativo em /public/uploads/...
+  pageNumber         Int
+  assignedQuestionId String?
+
+  importJob ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+  question  Question? @relation(fields: [assignedQuestionId], references: [id], onDelete: SetNull)
+
+  @@index([importJobId])
 }

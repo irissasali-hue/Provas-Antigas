@@ -23,6 +23,7 @@ export async function SiteHeader() {
           <li><Link href="/listas">Minhas listas</Link></li>
           <li><Link href="/revisao">Revisão</Link></li>
           <li><Link href="/sobre">Sobre o projeto</Link></li>
+          {user?.isAdmin && <li><Link href="/admin/importacoes">Admin</Link></li>}
           <li className="nav-user">
             {user ? (
               <>

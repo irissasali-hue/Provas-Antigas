@@ -55,7 +55,10 @@ export async function createListFromExamAction(formData: FormData) {
 
   const exam = await db.exam.findUnique({
     where: { id: examId },
-    include: { institution: true, questions: { orderBy: { number: "asc" } } },
+    include: {
+      institution: true,
+      questions: { where: { status: "PUBLISHED" }, orderBy: { number: "asc" } },
+    },
   });
 
   if (!exam || exam.questions.length === 0) {

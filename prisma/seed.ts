@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { db } from "../src/lib/db";
+import { slugify } from "../src/lib/slugify";
 
 // ---------------------------------------------------------------------------
 // Dados de exemplo para desenvolvimento e demonstração.
@@ -18,7 +19,9 @@ async function main() {
   await db.studyList.deleteMany();
   await db.video.deleteMany();
   await db.alternative.deleteMany();
+  await db.importedImage.deleteMany();
   await db.question.deleteMany();
+  await db.importJob.deleteMany();
   await db.exam.deleteMany();
   await db.institution.deleteMany();
   await db.topic.deleteMany();
@@ -387,15 +390,6 @@ async function main() {
   console.log(`Usuário de demonstração: ${demoUser.email} / senha: demo1234`);
 
   console.log("Seed concluído.");
-}
-
-function slugify(text: string) {
-  return text
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
 }
 
 main()

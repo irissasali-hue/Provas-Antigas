@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 export default async function HomePage() {
   const [examCount, questionCount, institutionCount, topicCount, user] = await Promise.all([
     db.exam.count(),
-    db.question.count(),
+    db.question.count({ where: { status: "PUBLISHED" } }),
     db.institution.count(),
     db.topic.count(),
     getCurrentUser(),
@@ -14,7 +14,10 @@ export default async function HomePage() {
   const recentExams = await db.exam.findMany({
     orderBy: { year: "desc" },
     take: 5,
-    include: { institution: true, _count: { select: { questions: true } } },
+    include: {
+      institution: true,
+      _count: { select: { questions: { where: { status: "PUBLISHED" } } } },
+    },
   });
 
   return (

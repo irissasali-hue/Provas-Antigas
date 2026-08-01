@@ -60,14 +60,65 @@ npm run db:studio   # abre o Prisma Studio para inspecionar o banco
 
 O schema completo está em `prisma/schema.prisma`.
 
+Questões novas nascem com `status: DRAFT` quando vêm do pipeline de
+importação (abaixo) e só ficam visíveis no site depois de aprovadas — todas
+as páginas públicas filtram por `status: PUBLISHED`.
+
+## Importando provas com IA
+
+Para provas em **PDF com texto selecionável**, dá para extrair as questões
+automaticamente com ajuda de um modelo de IA (Claude), em vez de digitar
+tudo na mão:
+
+```bash
+npm run import:exam -- \
+  --pdf caminho/da/prova.pdf \
+  --instituicao FUVEST \
+  --ano 2024 \
+  --titulo "Prova objetiva" \
+  --fase "1ª fase" \
+  --gabarito caminho/do/gabarito.txt
+```
+
+- `--instituicao` precisa bater com o `shortName` de uma instituição já
+  cadastrada (ENEM, FUVEST, UNICAMP, VUNESP no seed).
+- `--gabarito` é opcional: um `.txt` com uma questão por linha, no formato
+  `1 B`, `1-B` ou `1) B`. Sem gabarito, a IA só marca a alternativa correta
+  quando tem certeza (senão fica em branco pra você preencher na revisão).
+- Requer `ANTHROPIC_API_KEY` configurada no `.env` (veja `.env.example`).
+
+O script:
+1. Extrai o texto do PDF por página (`pdf-parse`).
+2. Extrai as imagens embutidas no PDF (figuras/gráficos), quando existirem.
+   **Isso cobre bem o caso comum de fotos incorporadas, mas não é perfeito**
+   — desenhos vetoriais complexos podem não ser capturados; nesse caso, dá
+   pra colar a imagem manualmente na revisão.
+3. Manda o texto pro Claude pedindo o enunciado, alternativas, matéria/tema
+   (reaproveitando a taxonomia já cadastrada quando possível) e, se souber,
+   a alternativa correta.
+4. Grava tudo como **rascunho** (`status: DRAFT`) — nada aparece no site
+   ainda.
+
+Depois, revise em `/admin/importacoes` (é preciso ser administrador — veja
+abaixo). Lá dá pra editar o enunciado, ajustar matéria/tema/gabarito,
+escolher a imagem certa entre as extraídas e só então **aprovar e publicar**
+questão por questão, ou descartar as que saíram erradas.
+
+Para virar administrador:
+
+```bash
+npm run make-admin -- seu-email@exemplo.com
+```
+
+(a conta precisa já existir — crie pelo site em "Criar conta" primeiro).
+
 ## Contribuindo
 
 Este é um projeto aberto e a ideia é que a comunidade mantenha o acervo
 atualizado. Formas de contribuir:
 
-- **Questões e provas novas**: adicione ao banco seguindo o formato usado em
-  `prisma/seed.ts`, ou escreva um script de importação próprio em
-  `prisma/` a partir de uma fonte de dados (PDF, planilha, API).
+- **Questões e provas novas**: use o pipeline de importação acima, ou
+  adicione direto ao banco seguindo o formato usado em `prisma/seed.ts`.
 - **Vídeos recomendados**: adicione entradas em `Video` apontando para aulas
   de boa qualidade sobre cada tema.
 - **Código**: abra uma issue ou pull request. Mudanças de schema devem vir

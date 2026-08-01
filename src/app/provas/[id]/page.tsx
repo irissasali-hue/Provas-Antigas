@@ -11,6 +11,7 @@ export default async function ExamPage(props: PageProps<"/provas/[id]">) {
     include: {
       institution: true,
       questions: {
+        where: { status: "PUBLISHED" },
         orderBy: { number: "asc" },
         include: { alternatives: { orderBy: { letter: "asc" } }, topic: true },
       },

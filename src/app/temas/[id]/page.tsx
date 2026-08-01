@@ -13,6 +13,7 @@ export default async function TemaPage(props: PageProps<"/temas/[id]">) {
       subject: true,
       videos: { orderBy: { rating: "desc" } },
       questions: {
+        where: { status: "PUBLISHED" },
         take: 15,
         orderBy: { id: "asc" },
         include: { exam: { include: { institution: true } } },
